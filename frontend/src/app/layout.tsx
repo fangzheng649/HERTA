@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Outfit, JetBrains_Mono } from "next/font/google";
 import { SideNav } from "@/components/nav";
 import { siteConfig } from "@/config/site";
 import { cn } from "@/lib/utils";
 import "@/style/globals.css";
 import { Providers } from "./providers";
 
-const inter = Inter({ subsets: ["latin", "latin-ext"], variable: "--font-inter" });
-const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" });
+const outfit = Outfit({ subsets: ["latin", "latin-ext"], variable: "--font-sans" });
+const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
   title: siteConfig.title,
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>
-      <body className={cn("bg-background font-sans", inter.variable, jetbrains.variable)}>
+      <body className={cn("bg-background font-sans", outfit.variable, jetbrains.variable)}>
         <Providers>
           <div className="flex min-h-[100dvh]">
             <SideNav />

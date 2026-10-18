@@ -19,8 +19,8 @@ const config = {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", ...fontFamily.sans],
-        mono: ["JetBrains Mono", ...fontFamily.mono],
+        sans: ["var(--font-sans)", "Outfit", ...fontFamily.sans],
+        mono: ["var(--font-mono)", "JetBrains Mono", ...fontFamily.mono],
       },
       screens: {
         phone: "370px",

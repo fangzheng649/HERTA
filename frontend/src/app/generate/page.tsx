@@ -172,10 +172,13 @@ export default function GeneratePage() {
       {/* Progress */}
       {progress && (
         <Container className="border-b border-border py-3">
-          <div className="text-sm text-muted-foreground">{progress}</div>
-          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-primary" />
+            {progress}
+          </div>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div
-              className="h-full rounded-full bg-primary transition-all duration-500"
+              className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
               style={{ width: `${progressPct}%` }}
             />
           </div>
@@ -185,17 +188,43 @@ export default function GeneratePage() {
       {/* Result */}
       {(configResult || handlerResult) && (
         <Container className="py-4">
-          <div className="mb-3 flex gap-2">
-            <Button variant={viewMode === "config" ? "default" : "outline"} size="sm" onClick={() => setViewMode("config")}>
-              Config
-            </Button>
-            <Button variant={viewMode === "handler" ? "default" : "outline"} size="sm" onClick={() => setViewMode("handler")}>
-              Handler
-            </Button>
+          <div className="mb-3 flex items-center gap-2">
+            <div className="flex gap-1 rounded-lg border border-border bg-muted p-1">
+              <button
+                onClick={() => setViewMode("config")}
+                className={`rounded-md px-4 py-1.5 text-sm transition-colors ${
+                  viewMode === "config" ? "bg-card font-medium shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Config（JSON）
+              </button>
+              <button
+                onClick={() => setViewMode("handler")}
+                className={`rounded-md px-4 py-1.5 text-sm transition-colors ${
+                  viewMode === "handler" ? "bg-card font-medium shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Handler（C）
+              </button>
+            </div>
+            <button
+              onClick={() => navigator.clipboard.writeText((viewMode === "config" ? configResult : handlerResult) || "")}
+              className="ml-auto rounded-md border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+            >
+              复制内容
+            </button>
           </div>
-          <pre className="max-h-[600px] overflow-auto rounded-lg border border-border bg-muted/30 p-4 text-xs leading-relaxed">
-            <code>{viewMode === "config" ? configResult : handlerResult}</code>
-          </pre>
+          <div className="overflow-hidden rounded-lg border border-border bg-card shadow-soft-sm">
+            <div className="flex items-center gap-2 border-b border-border bg-muted/50 px-4 py-2">
+              <span className="h-2 w-2 rounded-full bg-primary/60" />
+              <span className="font-mono text-xs text-muted-foreground">
+                {viewMode === "config" ? `${selectedTarget}_config.json` : `${selectedTarget}_handler.c`}
+              </span>
+            </div>
+            <pre className="code-scroll max-h-[600px] overflow-auto p-4 font-mono text-xs leading-relaxed">
+              <code>{viewMode === "config" ? configResult : handlerResult}</code>
+            </pre>
+          </div>
         </Container>
       )}
     </div>

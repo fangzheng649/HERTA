@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { ChevronDown, FileText } from "lucide-react";
 import Container from "@/components/container";
 import { ConfigScores } from "@/components/chart-blocks";
+import MarkdownView from "@/components/markdown-view";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import type { TargetInfo, CompareMetrics, FunctionMatch } from "@/types/types";
 
 export default function ComparePage() {
@@ -13,6 +16,8 @@ export default function ComparePage() {
   const [metrics, setMetrics] = useState<CompareMetrics | null>(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState("");
+  const [report, setReport] = useState<string | null>(null);
+  const [showReport, setShowReport] = useState(false);
 
   useEffect(() => {
     api.targets().then((res) => setTargets(res.targets || [])).catch(() => {});
@@ -21,9 +26,15 @@ export default function ComparePage() {
   // 选择 target 后自动加载已有评测结果
   useEffect(() => {
     if (!selectedTarget) return;
+    setReport(null);
     api.compareResult(selectedTarget)
       .then((res) => {
         if (res.exists && res.metrics) setMetrics(res.metrics);
+      })
+      .catch(() => {});
+    api.compareReport(selectedTarget)
+      .then((res) => {
+        if (res.exists && res.content) setReport(res.content);
       })
       .catch(() => {});
   }, [selectedTarget]);
@@ -154,31 +165,73 @@ export default function ComparePage() {
           {matches.length > 0 && (
             <Container className="py-4">
               <h3 className="mb-3 text-sm font-medium">函数匹配列表</h3>
-              <div className="overflow-x-auto rounded-lg border border-border">
+              <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-soft-sm">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="px-3 py-2 text-left font-medium">真实函数</th>
-                      <th className="px-3 py-2 text-left font-medium">生成函数</th>
-                      <th className="px-3 py-2 text-left font-medium">同名</th>
-                      <th className="px-3 py-2 text-left font-medium">AST</th>
-                      <th className="px-3 py-2 text-left font-medium">TED</th>
-                      <th className="px-3 py-2 text-left font-medium">语义</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">真实函数</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">生成函数</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">同名</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">AST 综合</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">TED</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">语义</th>
                     </tr>
                   </thead>
                   <tbody>
                     {matches.map((m: FunctionMatch, i: number) => (
-                      <tr key={i} className="border-t border-border">
+                      <tr key={i} className="border-t border-border transition-colors hover:bg-muted/30">
                         <td className="px-3 py-2 font-mono text-xs">{m.gt_func_name}</td>
-                        <td className="px-3 py-2 font-mono text-xs">{m.gen_func_name || "-"}</td>
-                        <td className="px-3 py-2">{m.is_name_match ? "✓" : "✗"}</td>
-                        <td className="px-3 py-2 font-mono">{(m.ast_similarity * 100).toFixed(1)}%</td>
-                        <td className="px-3 py-2 font-mono">{(m.tree_edit_similarity * 100).toFixed(1)}%</td>
-                        <td className="px-3 py-2 font-mono">{(m.semantic_feature_similarity * 100).toFixed(1)}%</td>
+                        <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{m.gen_func_name || "-"}</td>
+                        <td className="px-3 py-2">{m.is_name_match ? (
+                          <span className="text-emerald-600">✓</span>
+                        ) : (
+                          <span className="text-muted-foreground/50">✗</span>
+                        )}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
+                              <div
+                                className={cn(
+                                  "h-full rounded-full",
+                                  m.ast_similarity >= 0.6 ? "bg-primary" : m.ast_similarity >= 0.4 ? "bg-accent" : "bg-muted-foreground/40",
+                                )}
+                                style={{ width: `${m.ast_similarity * 100}%` }}
+                              />
+                            </div>
+                            <span className="font-mono text-xs tabular-nums">{(m.ast_similarity * 100).toFixed(1)}%</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 font-mono text-xs tabular-nums">{(m.tree_edit_similarity * 100).toFixed(1)}%</td>
+                        <td className="px-3 py-2 font-mono text-xs tabular-nums">{(m.semantic_feature_similarity * 100).toFixed(1)}%</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </Container>
+          )}
+
+          {/* 评测报告 */}
+          {report && (
+            <Container className="py-4">
+              <div className="top-beam overflow-hidden rounded-lg border border-border bg-card shadow-soft-sm">
+                <button
+                  className="flex w-full items-center gap-2 px-5 py-3.5 text-left transition-colors hover:bg-muted/40"
+                  onClick={() => setShowReport(!showReport)}
+                >
+                  <FileText size={15} strokeWidth={1.8} className="text-primary" />
+                  <span className="text-sm font-medium">完整评测报告</span>
+                  <span className="font-mono text-[10.5px] text-muted-foreground">Markdown</span>
+                  <ChevronDown
+                    size={15}
+                    className={cn("ml-auto text-muted-foreground transition-transform", showReport && "rotate-180")}
+                  />
+                </button>
+                {showReport && (
+                  <div className="border-t border-border px-5 py-4">
+                    <MarkdownView content={report} />
+                  </div>
+                )}
               </div>
             </Container>
           )}

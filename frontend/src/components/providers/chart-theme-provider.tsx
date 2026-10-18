@@ -18,9 +18,9 @@ export function ChartThemeProvider({ children }: { children: React.ReactNode }) 
   const [theme, setTheme] = useState<ChartTheme>("system");
 
   useEffect(() => {
-    const font = window.getComputedStyle(document.body).getPropertyValue("--font-inter").trim();
-    ThemeManager.registerTheme("light", { ...customLightTheme, fontFamily: font || "Inter, sans-serif" });
-    ThemeManager.registerTheme("dark", { ...customDarkTheme, fontFamily: font || "Inter, sans-serif" });
+    const font = window.getComputedStyle(document.body).getPropertyValue("--font-sans").trim();
+    ThemeManager.registerTheme("light", { ...customLightTheme, fontFamily: font || "Outfit, sans-serif" });
+    ThemeManager.registerTheme("dark", { ...customDarkTheme, fontFamily: font || "Outfit, sans-serif" });
   }, []);
 
   useEffect(() => {
