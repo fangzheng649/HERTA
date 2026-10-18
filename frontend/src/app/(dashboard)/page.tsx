@@ -125,11 +125,25 @@ export default function DashboardPage() {
                 <tbody>
                   <tr className="border-b border-border">
                     <td className="bg-muted/50 px-4 py-2.5 font-medium">LLM 模型</td>
-                    <td className="px-4 py-2.5 font-mono text-muted-foreground">{settings?.chat_model || "-"}</td>
+                    <td className="px-4 py-2.5 font-mono text-muted-foreground">
+                      {settings?.chat_model || "-"}
+                      {settings?.chat_provider && (
+                        <span className="ml-1.5 rounded bg-secondary px-1.5 py-0.5 text-[10px] text-secondary-foreground">
+                          {settings.chat_provider === "openai" ? "OpenAI 兼容" : "智谱"}
+                        </span>
+                      )}
+                    </td>
                   </tr>
                   <tr className="border-b border-border">
                     <td className="bg-muted/50 px-4 py-2.5 font-medium">Embedding 模型</td>
-                    <td className="px-4 py-2.5 font-mono text-muted-foreground">{settings?.embedding_model || "-"}</td>
+                    <td className="px-4 py-2.5 font-mono text-muted-foreground">
+                      {settings?.embedding_model || "-"}
+                      {settings?.embedding_provider && (
+                        <span className="ml-1.5 rounded bg-secondary px-1.5 py-0.5 text-[10px] text-secondary-foreground">
+                          {settings.embedding_provider === "openai" ? "OpenAI 兼容" : "智谱"}
+                        </span>
+                      )}
+                    </td>
                   </tr>
                   <tr className="border-b border-border">
                     <td className="bg-muted/50 px-4 py-2.5 font-medium">Embedding 维度</td>

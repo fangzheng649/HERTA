@@ -47,17 +47,30 @@ npm install --legacy-peer-deps
 cd ..
 ```
 
-### 3. 配置 API Key
+### 3. 配置 LLM 供应商
+
+支持两类供应商，**对话（Chat）与向量（Embedding）可分别配置**：
+
+| 供应商 | 协议 | 说明 |
+|--------|------|------|
+| `zai`（默认） | 智谱 AI 原生（zai-sdk） | 对话 + embedding-3 向量 |
+| `openai` | OpenAI 兼容 HTTP | DeepSeek、硅基流动、Moonshot 等 |
 
 ```bash
-# Linux / macOS
-export ZAI_API_KEY='your-api-key'
+# 方式一：智谱 AI（默认，一把钥匙同时用于对话与向量）
+export ZAI_API_KEY='your-zhipu-key'
 
-# Windows (PowerShell)
-$env:ZAI_API_KEY='your-api-key'
+# 方式二：DeepSeek 对话 + 智谱向量（DeepSeek 无 embedding 接口）
+export ZAI_API_KEY='your-zhipu-key'                 # embedding 仍走智谱
+export HERTA_CHAT_PROVIDER=openai
+export HERTA_CHAT_BASE_URL='https://api.deepseek.com'
+export HERTA_CHAT_API_KEY='sk-your-deepseek-key'
+export HERTA_CHAT_MODEL='deepseek-chat'
 ```
 
-也可以启动后在 Web 界面 **设置** 页面填写（仅当前进程有效，重启需重设）。
+也可以在 Web 界面 **设置** 页面可视化配置（仅当前进程有效，重启需重设）。
+
+> ⚠️ 注意：DeepSeek 官方 API 仅提供对话模型，**不提供 embedding 接口**。如需全链路 OpenAI 兼容，可改用硅基流动等同时提供对话与向量（如 `BAAI/bge-m3`）的服务商。
 
 ### 4. 启动服务
 
@@ -173,8 +186,14 @@ HERTA/
 
 | 变量 | 必填 | 说明 | 默认 |
 |------|------|------|------|
-| `ZAI_API_KEY` | 是 | 智谱 AI API Key | — |
+| `ZAI_API_KEY` | 任一密钥必填 | 智谱 AI API Key（chat/embedding 兜底） | — |
+| `HERTA_CHAT_PROVIDER` | 否 | 对话供应商：`zai` / `openai` | `zai` |
+| `HERTA_CHAT_API_KEY` | 否 | 对话密钥（缺省回退 ZAI_API_KEY） | — |
+| `HERTA_CHAT_BASE_URL` | openai 时必填 | 对话接口地址，如 `https://api.deepseek.com` | — |
 | `HERTA_CHAT_MODEL` | 否 | 对话模型 | `glm-5.1` |
+| `HERTA_EMBEDDING_PROVIDER` | 否 | 向量供应商：`zai` / `openai` | `zai` |
+| `HERTA_EMBEDDING_API_KEY` | 否 | 向量密钥（缺省回退 ZAI_API_KEY） | — |
+| `HERTA_EMBEDDING_BASE_URL` | openai 时必填 | 向量接口地址 | — |
 | `HERTA_EMBEDDING_MODEL` | 否 | 向量模型 | `embedding-3` |
 | `HERTA_EMBEDDING_DIMENSIONS` | 否 | 向量维度 | `1024` |
 | `HERTA_DATA_DIR` | 否 | 数据目录 | `data` |

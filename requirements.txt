@@ -20,6 +20,9 @@ PyMuPDF>=1.24.0
 # 智谱 AI SDK
 zai-sdk>=0.2.0
 
+# OpenAI 兼容供应商（DeepSeek 等）HTTP 客户端
+httpx>=0.27.0
+
 # Web API 依赖
 fastapi>=0.110.0
 uvicorn>=0.29.0

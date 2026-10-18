@@ -15,28 +15,50 @@ router = APIRouter()
 
 
 class UpdateSettingsRequest(BaseModel):
-    api_key: str = ""
+    api_key: str = ""            # 智谱统一密钥（向后兼容，写入 ZAI_API_KEY）
     chat_model: str = ""
     embedding_model: str = ""
+    chat_provider: str = ""      # zai / openai
+    chat_base_url: str = ""
+    chat_api_key: str = ""
+    embedding_provider: str = ""
+    embedding_base_url: str = ""
+    embedding_api_key: str = ""
+
+
+def _preview(key: str) -> str:
+    return (key[:8] + "...") if key else ""
 
 
 @router.get("")
 async def get_settings_api():
     """获取当前设置"""
     try:
-        settings = get_settings()
+        s = get_settings()
         return {
-            "api_key_set": bool(settings.zai_api_key),
-            "api_key_preview": (settings.zai_api_key[:8] + "...") if settings.zai_api_key else "",
-            "chat_model": settings.chat_model,
-            "embedding_model": settings.embedding_model,
-            "embedding_dimensions": settings.embedding_dimensions,
+            "api_key_set": bool(s.effective_chat_key() or s.effective_embedding_key()),
+            "api_key_preview": _preview(s.zai_api_key),
+            "chat_provider": s.chat_provider,
+            "chat_api_key_preview": _preview(s.effective_chat_key()),
+            "chat_base_url": s.chat_base_url,
+            "chat_model": s.chat_model,
+            "embedding_provider": s.embedding_provider,
+            "embedding_api_key_preview": _preview(s.effective_embedding_key()),
+            "embedding_base_url": s.embedding_base_url,
+            "embedding_model": s.embedding_model,
+            "embedding_dimensions": s.embedding_dimensions,
         }
     except Exception:
         return {
             "api_key_set": bool(os.environ.get("ZAI_API_KEY")),
             "api_key_preview": "",
+            "chat_provider": "zai",
+            "chat_api_key_preview": "",
+            "chat_base_url": "",
             "chat_model": "glm-5.1",
+            "embedding_provider": "zai",
+            "embedding_api_key_preview": "",
+            "embedding_base_url": "",
             "embedding_model": "embedding-3",
             "embedding_dimensions": 1024,
         }
@@ -44,18 +66,26 @@ async def get_settings_api():
 
 @router.post("")
 async def update_settings(req: UpdateSettingsRequest):
-    """更新设置"""
+    """更新设置（仅当前进程生效，重启后恢复环境变量配置）"""
     from herta.config import reload_settings
 
-    if req.api_key:
-        os.environ["ZAI_API_KEY"] = req.api_key
-    if req.chat_model:
-        os.environ["HERTA_CHAT_MODEL"] = req.chat_model
-    if req.embedding_model:
-        os.environ["HERTA_EMBEDDING_MODEL"] = req.embedding_model
+    mapping = {
+        "ZAI_API_KEY": req.api_key,
+        "HERTA_CHAT_MODEL": req.chat_model,
+        "HERTA_EMBEDDING_MODEL": req.embedding_model,
+        "HERTA_CHAT_PROVIDER": req.chat_provider,
+        "HERTA_CHAT_BASE_URL": req.chat_base_url,
+        "HERTA_CHAT_API_KEY": req.chat_api_key,
+        "HERTA_EMBEDDING_PROVIDER": req.embedding_provider,
+        "HERTA_EMBEDDING_BASE_URL": req.embedding_base_url,
+        "HERTA_EMBEDDING_API_KEY": req.embedding_api_key,
+    }
+    for env_name, value in mapping.items():
+        if value:
+            os.environ[env_name] = value
 
     reload_settings()
-    logger.info(f"设置已更新并刷新缓存")
+    logger.info("设置已更新并刷新缓存")
     return {"status": "ok"}
 
 

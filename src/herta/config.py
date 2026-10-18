@@ -14,6 +14,8 @@ from herta.constants import (
     DEFAULT_EMBEDDING_DIMENSIONS,
     DEFAULT_DATA_DIR,
     DEFAULT_OUTPUT_DIR,
+    DEFAULT_CHAT_PROVIDER,
+    DEFAULT_EMBEDDING_PROVIDER,
 )
 
 
@@ -22,18 +24,35 @@ class Settings:
     """
     应用配置类
 
+    LLM 支持两个供应商：
+        - zai: 智谱 AI（默认，zai-sdk 原生协议）
+        - openai: OpenAI 兼容协议（DeepSeek、硅基流动、Moonshot 等）
+
+    Chat 与 Embedding 可分别配置供应商（DeepSeek 不提供 embedding 接口，
+    典型用法是 chat 走 DeepSeek、embedding 仍走智谱）。
+
     属性:
-        zai_api_key: 智谱 AI API 密钥（必填，从环境变量 ZAI_API_KEY 读取）
-        chat_model: 聊天模型名称
-        embedding_model: Embedding 模型名称
+        zai_api_key: 智谱 AI API 密钥（ZAI_API_KEY，向后兼容的统一密钥）
+        chat_provider / chat_api_key / chat_base_url / chat_model: 对话配置
+        embedding_provider / embedding_api_key / embedding_base_url / embedding_model: 向量配置
         embedding_dimensions: Embedding 向量维度
         data_dir: 数据目录路径
         output_dir: 输出目录路径
     """
 
-    # 智谱 AI 配置
+    # 智谱 AI 配置（向后兼容：同时作为 chat/embedding 密钥的兜底）
     zai_api_key: str = field(default="")
+
+    # Chat 供应商配置
+    chat_provider: str = field(default=DEFAULT_CHAT_PROVIDER)
+    chat_api_key: str = field(default="")
+    chat_base_url: str = field(default="")
     chat_model: str = field(default=DEFAULT_CHAT_MODEL)
+
+    # Embedding 供应商配置
+    embedding_provider: str = field(default=DEFAULT_EMBEDDING_PROVIDER)
+    embedding_api_key: str = field(default="")
+    embedding_base_url: str = field(default="")
     embedding_model: str = field(default=DEFAULT_EMBEDDING_MODEL)
     embedding_dimensions: int = field(default=DEFAULT_EMBEDDING_DIMENSIONS)
 
@@ -41,13 +60,21 @@ class Settings:
     data_dir: str = field(default=DEFAULT_DATA_DIR)
     output_dir: str = field(default=DEFAULT_OUTPUT_DIR)
 
+    def effective_chat_key(self) -> str:
+        """Chat 实际使用的密钥：HERTA_CHAT_API_KEY > ZAI_API_KEY"""
+        return self.chat_api_key or self.zai_api_key
+
+    def effective_embedding_key(self) -> str:
+        """Embedding 实际使用的密钥：HERTA_EMBEDDING_API_KEY > ZAI_API_KEY"""
+        return self.embedding_api_key or self.zai_api_key
+
     def __post_init__(self):
-        """初始化后校验必填项"""
-        if not self.zai_api_key:
-            raise ValueError(
-                "ZAI_API_KEY 环境变量未设置，请先设置环境变量:\n"
-                "  export ZAI_API_KEY='your-api-key'"
-            )
+        """
+        初始化后不强制校验密钥：允许仅配置供应商/模型而不设密钥
+        （如先保存设置再补 key）；密钥校验推迟到 LLM 客户端实际调用时进行，
+        避免设置接口在无 key 环境下整体不可用。
+        """
+        pass
 
 
 # 全局配置缓存
@@ -75,8 +102,12 @@ def load_settings_from_env() -> Settings:
     从环境变量加载配置
 
     支持的环境变量:
-        - ZAI_API_KEY: 智谱 AI API 密钥（必填）
-        - HERTA_CHAT_MODEL: 聊天模型名称
+        - ZAI_API_KEY: 智谱 AI API 密钥（向后兼容的统一密钥）
+        - HERTA_CHAT_PROVIDER: 对话供应商（zai / openai，默认 zai）
+        - HERTA_CHAT_API_KEY: 对话密钥（缺省回退 ZAI_API_KEY）
+        - HERTA_CHAT_BASE_URL: 对话接口地址（openai 供应商时必填，如 https://api.deepseek.com）
+        - HERTA_CHAT_MODEL: 对话模型名称
+        - HERTA_EMBEDDING_PROVIDER / HERTA_EMBEDDING_API_KEY / HERTA_EMBEDDING_BASE_URL: 向量同上
         - HERTA_EMBEDDING_MODEL: Embedding 模型名称
         - HERTA_EMBEDDING_DIMENSIONS: Embedding 向量维度
         - HERTA_DATA_DIR: 数据目录路径
@@ -86,11 +117,17 @@ def load_settings_from_env() -> Settings:
         Settings 配置对象
 
     Raises:
-        ValueError: 当必填项 ZAI_API_KEY 未设置时
+        ValueError: 当所有密钥均未设置时
     """
     return Settings(
         zai_api_key=_get_env_or_default("ZAI_API_KEY", ""),
+        chat_provider=_get_env_or_default("HERTA_CHAT_PROVIDER", DEFAULT_CHAT_PROVIDER),
+        chat_api_key=_get_env_or_default("HERTA_CHAT_API_KEY", ""),
+        chat_base_url=_get_env_or_default("HERTA_CHAT_BASE_URL", ""),
         chat_model=_get_env_or_default("HERTA_CHAT_MODEL", DEFAULT_CHAT_MODEL),
+        embedding_provider=_get_env_or_default("HERTA_EMBEDDING_PROVIDER", DEFAULT_EMBEDDING_PROVIDER),
+        embedding_api_key=_get_env_or_default("HERTA_EMBEDDING_API_KEY", ""),
+        embedding_base_url=_get_env_or_default("HERTA_EMBEDDING_BASE_URL", ""),
         embedding_model=_get_env_or_default(
             "HERTA_EMBEDDING_MODEL", DEFAULT_EMBEDDING_MODEL
         ),

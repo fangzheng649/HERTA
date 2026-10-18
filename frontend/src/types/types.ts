@@ -57,7 +57,13 @@ export interface TaskStatus {
 export interface SettingsData {
   api_key_set: boolean;
   api_key_preview: string;
+  chat_provider: string;
+  chat_api_key_preview: string;
+  chat_base_url: string;
   chat_model: string;
+  embedding_provider: string;
+  embedding_api_key_preview: string;
+  embedding_base_url: string;
   embedding_model: string;
   embedding_dimensions: number;
 }
