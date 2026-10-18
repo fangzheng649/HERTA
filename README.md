@@ -199,6 +199,20 @@ HERTA/
 | `HERTA_DATA_DIR` | 否 | 数据目录 | `data` |
 | `HERTA_OUTPUT_DIR` | 否 | 输出目录 | `output` |
 
+## 常见问题
+
+**Q：没有 API Key 能看什么？**
+可以。仓库附带预构建的 `gdwx` 知识库与 `dllg` 完整评测结果，启动后无需任何 Key 即可浏览：仪表盘指标、知识库 Embedding 可视化、已生成的 Config/Handler 代码、评测对比与完整 Markdown 报告。只有「构建知识库」「生成 Config/Handler」需要 LLM API；「运行评测」为纯本地计算。
+
+**Q：端口被占用？**
+后端换端口：`herta api --port 8001`，同时把 `frontend/next.config.mjs` 中的 `localhost:8000` 改为对应端口。前端换端口：`npm run dev -- -p 3001`。
+
+**Q：Windows 下 `herta api` 提示找不到命令？**
+确认已 `pip install -e .` 且当前环境的 Scripts 目录在 PATH 中；也可用等价命令 `python -m uvicorn herta.api.app:app --port 8000 --app-dir src`。
+
+**Q：构建知识库卡住或失败？**
+多为 embedding 接口问题：检查 API Key 是否有效、embedding 供应商配置是否正确（DeepSeek 无 embedding 接口，见上文供应商配置）。
+
 ## License
 
 MIT
