@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from herta.api.task_store import tasks
 from herta.utils.paths import project_relative
 from herta.logging import get_logger
+from herta.api.guards import validate_name
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -55,19 +56,7 @@ async def list_targets():
 @router.post("/config")
 async def generate_config(req: GenerateConfigRequest):
     """生成 config.json（后台任务）"""
-    import uuid
-    task_id = str(uuid.uuid4())[:8]
-
-    tasks[task_id] = {
-        "type": "generate_config",
-        "status": "pending",
-        "progress": 0,
-        "message": "准备生成配置...",
-        "target": req.target,
-        "created_at": asyncio.get_event_loop().time(),
-        "result": None,
-        "error": None,
-    }
+    task_id = tasks.create("generate")
 
     asyncio.get_event_loop().run_in_executor(
         None, _run_generate_config, task_id, req
@@ -79,19 +68,7 @@ async def generate_config(req: GenerateConfigRequest):
 @router.post("/handler")
 async def generate_handler(req: GenerateHandlerRequest):
     """生成 handler.c（后台任务）"""
-    import uuid
-    task_id = str(uuid.uuid4())[:8]
-
-    tasks[task_id] = {
-        "type": "generate_handler",
-        "status": "pending",
-        "progress": 0,
-        "message": "准备生成 Handler 代码...",
-        "target": req.target,
-        "created_at": asyncio.get_event_loop().time(),
-        "result": None,
-        "error": None,
-    }
+    task_id = tasks.create("generate")
 
     asyncio.get_event_loop().run_in_executor(
         None, _run_generate_handler, task_id, req
@@ -127,6 +104,13 @@ def _run_generate_config(task_id: str, req: GenerateConfigRequest):
             top_k=req.top_k,
             output_dir=output_dir,
         )
+
+        # 生成器内部会把阶段失败吞进 result（error_message/is_valid），需据此判定任务成败
+        if getattr(result, "error_message", None) or getattr(result, "is_valid", True) is False:
+            tasks[task_id]["status"] = "failed"
+            tasks[task_id]["error"] = getattr(result, "error_message", None) or "生成结果未通过校验"
+            tasks[task_id]["message"] = f"生成失败: {tasks[task_id]['error']}"
+            return
 
         tasks[task_id]["status"] = "completed"
         tasks[task_id]["progress"] = 100
@@ -172,6 +156,12 @@ def _run_generate_handler(task_id: str, req: GenerateHandlerRequest):
             output_dir=output_dir,
         )
 
+        if getattr(result, "error_message", None) or getattr(result, "is_valid", True) is False:
+            tasks[task_id]["status"] = "failed"
+            tasks[task_id]["error"] = getattr(result, "error_message", None) or "生成结果未通过校验"
+            tasks[task_id]["message"] = f"生成失败: {tasks[task_id]['error']}"
+            return
+
         tasks[task_id]["status"] = "completed"
         tasks[task_id]["progress"] = 100
         tasks[task_id]["message"] = "Handler 代码生成完成"
@@ -192,6 +182,7 @@ def _run_generate_handler(task_id: str, req: GenerateHandlerRequest):
 @router.get("/result/{target}")
 async def get_generated_result(target: str):
     """获取已生成的结果"""
+    target = validate_name(target, "target")
     gen_dir = project_relative(f"output/generated/{target}")
     if not gen_dir.exists():
         return {"exists": False}
@@ -207,6 +198,6 @@ async def get_generated_result(target: str):
     if handler_file.exists():
         with open(handler_file, "r", encoding="utf-8") as f:
             result["handler_source"] = f.read()
-            result["handler_lines"] = result["handler_source"].count("\n") + 1
+            result["handler_lines"] = len(result["handler_source"].splitlines())
 
     return result

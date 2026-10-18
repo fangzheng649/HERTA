@@ -54,6 +54,12 @@ export default function ComparePage() {
             if (result.exists && result.metrics) {
               setMetrics(result.metrics);
             }
+            // 重跑后同步刷新 Markdown 报告，避免展示上一轮内容
+            api.compareReport(selectedTarget)
+              .then((rep) => {
+                if (rep.exists && rep.content) setReport(rep.content);
+              })
+              .catch(() => {});
             setProgress("");
             setLoading(false);
           } else if (status.status === "failed") {

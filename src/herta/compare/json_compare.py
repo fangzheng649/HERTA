@@ -73,14 +73,13 @@ class ConfigComparator:
         "internal_handler": 0.20,
     }
 
-    # 常见协议前缀，用于 handler 名归一化
-    PROTOCOL_PREFIXES = ["dllg_", "gdwx_", "dllg", "gdwx"]
+    # handler 名前缀在 __init__ 中从配置内容动态推断（_infer_handler_prefixes）
 
     def _normalize_handler_name(self, name: str) -> str:
         """去掉协议前缀，统一比较"""
-        name = name.strip()
-        for prefix in self.PROTOCOL_PREFIXES:
-            if name.lower().startswith(prefix):
+        name = name.strip().lower()
+        for prefix in self._handler_prefixes:
+            if name.startswith(prefix):
                 name = name[len(prefix):]
                 break
         return name.strip("_")
@@ -110,6 +109,21 @@ class ConfigComparator:
         """
         self.gen = gen_config
         self.gt = gt_config
+        # 协议前缀从两份配置的 handler 名动态推断（而非硬编码 dllg_/gdwx_），
+        # 以支持任意目标协议名称
+        self._handler_prefixes = self._infer_handler_prefixes()
+
+    def _infer_handler_prefixes(self) -> List[str]:
+        """从 handler 名推断协议前缀（取首个下划线前的段，如 dllg_xxx → dllg_）"""
+        prefixes = set()
+        for cfg in (self.gen, self.gt):
+            for section in ("cmd_list", "tele_handler", "internal_handler"):
+                for item in cfg.get(section, []) or []:
+                    handler = str(item.get("handler", ""))
+                    if "_" in handler:
+                        prefixes.add(handler.split("_", 1)[0] + "_")
+        # 长的前缀优先匹配，避免 dllg_ 被 dllg 吃掉
+        return sorted(prefixes, key=len, reverse=True)
 
     def compare(self) -> ConfigComparisonResult:
         """

@@ -122,12 +122,13 @@ class FunctionMatcher:
             gen_functions, gt_functions, similarity_matrix
         )
 
-        # 识别未匹配函数
-        matched_gt_names = {m.gt_func_name for m in matches if m.is_matched}
-        matched_gen_names = {m.gen_func_name for m in matches if m.is_matched}
+        # 识别未匹配函数：凡进入 matches 列表的（含低于阈值的配对行）都视为已配对，
+        # 否则同一函数会同时出现在配对表与未匹配列表中
+        paired_gt_names = {m.gt_func_name for m in matches}
+        paired_gen_names = {m.gen_func_name for m in matches if m.gen_func_name}
 
-        unmatched_gt = [f.name for f in gt_functions if f.name not in matched_gt_names]
-        unmatched_gen = [f.name for f in gen_functions if f.name not in matched_gen_names]
+        unmatched_gt = [f.name for f in gt_functions if f.name not in paired_gt_names]
+        unmatched_gen = [f.name for f in gen_functions if f.name not in paired_gen_names]
 
         # 计算整体 handler 相似度
         handler_sim = self._calculate_handler_similarity(matches, len(gt_functions))

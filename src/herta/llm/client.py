@@ -11,6 +11,8 @@ Chat 与 Embedding 的供应商可分别配置（DeepSeek 无 embedding 接口�
 
 from typing import List, Optional, Dict, Any
 
+import re
+
 from zai import ZhipuAiClient
 
 from herta.config import get_settings, Settings
@@ -21,9 +23,9 @@ logger = get_logger(__name__)
 
 
 def _normalize_base_url(url: str) -> str:
-    """归一化 OpenAI 兼容接口地址：补全 /v1 后缀"""
+    """归一化 OpenAI 兼容接口地址：无版本后缀时补 /v1，已有 /vN 路径则保持原样"""
     url = url.rstrip("/")
-    if not url.endswith("/v1"):
+    if not re.search(r"/v\d+$", url):
         url += "/v1"
     return url
 
@@ -67,13 +69,9 @@ class BigModelClient:
             ValueError: 当 API 密钥未设置时
         """
         self.settings = settings or get_settings()
-        self._zai_client = None
-        # 智谱原生客户端惰性初始化：仅在对应供应商被使用且密钥存在时创建
-        if (self.settings.chat_provider == "zai" and self.settings.effective_chat_key()) or (
-            self.settings.embedding_provider == "zai" and self.settings.effective_embedding_key()
-        ):
-            key = self.settings.effective_chat_key() or self.settings.effective_embedding_key()
-            self._zai_client = ZhipuAiClient(api_key=key)
+        # chat 与 embedding 使用独立的智谱客户端（二者密钥可能不同）
+        self._zai_chat_client = None
+        self._zai_embed_client = None
         logger.debug(
             f"LLM 客户端初始化: chat={self.settings.chat_provider}/{self.settings.chat_model}, "
             f"embedding={self.settings.embedding_provider}/{self.settings.embedding_model}"
@@ -127,11 +125,11 @@ class BigModelClient:
     def _chat_zai(self, messages, model_name, temperature) -> str:
         if not self.settings.effective_chat_key():
             raise RuntimeError("未配置对话密钥：请设置 ZAI_API_KEY 或 HERTA_CHAT_API_KEY")
-        if self._zai_client is None:
-            self._zai_client = ZhipuAiClient(api_key=self.settings.effective_chat_key())
+        if self._zai_chat_client is None:
+            self._zai_chat_client = ZhipuAiClient(api_key=self.settings.effective_chat_key())
         try:
             logger.debug(f"调用智谱 chat 接口，模型: {model_name}, 消息数: {len(messages)}")
-            response = self._zai_client.chat.completions.create(
+            response = self._zai_chat_client.chat.completions.create(
                 model=model_name,
                 messages=messages,
                 temperature=temperature,
@@ -236,9 +234,9 @@ class BigModelClient:
     def _embed_zai(self, batch: List[str], model_name: str, dims: int) -> List[List[float]]:
         if not self.settings.effective_embedding_key():
             raise RuntimeError("未配置向量密钥：请设置 ZAI_API_KEY 或 HERTA_EMBEDDING_API_KEY")
-        if self._zai_client is None:
-            self._zai_client = ZhipuAiClient(api_key=self.settings.effective_embedding_key())
-        response = self._zai_client.embeddings.create(model=model_name, input=batch, dimensions=dims)
+        if self._zai_embed_client is None:
+            self._zai_embed_client = ZhipuAiClient(api_key=self.settings.effective_embedding_key())
+        response = self._zai_embed_client.embeddings.create(model=model_name, input=batch, dimensions=dims)
         if hasattr(response, "data") and len(response.data) > 0:
             return [item.embedding for item in response.data]
         raise RuntimeError("API 返回格式异常，未找到 data 字段")

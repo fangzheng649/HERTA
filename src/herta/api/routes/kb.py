@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from herta.api.task_store import tasks
 from herta.utils.paths import project_relative
 from herta.logging import get_logger
+from herta.api.guards import validate_name
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -57,6 +58,7 @@ async def list_knowledge_bases():
 @router.get("/status/{source}")
 async def get_kb_status(source: str):
     """获取知识库状态"""
+    source = validate_name(source, "source")
     kb_dir = project_relative(f"data/kb/{source}")
     if not kb_dir.exists():
         return {"exists": False}
@@ -86,19 +88,7 @@ async def get_kb_status(source: str):
 @router.post("/build")
 async def build_knowledge_base(req: BuildKBRequest):
     """构建知识库（后台任务）"""
-    import uuid
-    task_id = str(uuid.uuid4())[:8]
-
-    tasks[task_id] = {
-        "type": "buildkb",
-        "status": "pending",
-        "progress": 0,
-        "message": "准备构建知识库...",
-        "source": req.source,
-        "created_at": asyncio.get_event_loop().time(),
-        "result": None,
-        "error": None,
-    }
+    task_id = tasks.create("buildkb")
 
     asyncio.get_event_loop().run_in_executor(
         None, _run_buildkb, task_id, req
@@ -174,6 +164,7 @@ def _run_buildkb(task_id: str, req: BuildKBRequest):
 @router.get("/visualization/{source}")
 async def get_kb_visualization(source: str):
     """获取知识库 Embedding 2D 可视化数据"""
+    source = validate_name(source, "source")
     vis_dir = project_relative(f"output/visualization/{source}")
     proj_file = vis_dir / "projection_2d.json"
 
@@ -240,24 +231,23 @@ async def get_kb_visualization(source: str):
 @router.get("/chunks/{source}")
 async def get_kb_chunks(source: str, limit: int = Query(default=20, ge=1, le=100)):
     """获取知识库 chunks 样本"""
+    source = validate_name(source, "source")
     chunks_file = project_relative(f"data/kb/{source}/chunks.jsonl")
     if not chunks_file.exists():
         return {"chunks": [], "total": 0}
 
     chunks = []
+    total = 0
+    # 单次遍历：统计非空行数并取前 limit 条样本
     with open(chunks_file, "r", encoding="utf-8") as f:
-        for i, line in enumerate(f):
-            if i >= limit:
-                break
-            if line.strip():
+        for line in f:
+            if not line.strip():
+                continue
+            total += 1
+            if len(chunks) < limit:
                 chunk = json.loads(line)
                 chunk["text_preview"] = chunk.get("text", "")[:200]
-                if "text" in chunk and len(chunk["text"]) > 200:
-                    del chunk["text"]
+                chunk.pop("text", None)  # 统一 schema：一律不返回全文
                 chunks.append(chunk)
-
-    total = 0
-    with open(chunks_file, "r", encoding="utf-8") as f:
-        total = sum(1 for _ in f)
 
     return {"chunks": chunks, "total": total}

@@ -20,10 +20,15 @@ def create_app() -> FastAPI:
         version="0.1.0",
     )
 
-    # CORS（前端开发服务器默认 3000 端口，通过 next.config.mjs rewrite 代理）
+    # CORS：前端经 next.config.mjs rewrite 同源代理，仅需放行本机开发端口
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=[
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:3001",
+            "http://127.0.0.1:3001",
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

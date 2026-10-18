@@ -28,6 +28,21 @@ export default function GeneratePage() {
       .catch(() => {});
   }, []);
 
+  // 选中目标后加载已有生成结果（仅展示用；点击生成按钮始终会重新生成）
+  useEffect(() => {
+    if (!selectedTarget) return;
+    setConfigResult(null);
+    setHandlerResult(null);
+    api.generateResult(selectedTarget)
+      .then((res) => {
+        if (res.exists) {
+          if (res.config) setConfigResult(JSON.stringify(res.config, null, 2));
+          if (res.handler_source) setHandlerResult(res.handler_source);
+        }
+      })
+      .catch(() => {});
+  }, [selectedTarget]);
+
   const pollTask = useCallback(async (taskId: string, onDone: () => void) => {
     const poll = async () => {
       try {
@@ -53,16 +68,6 @@ export default function GeneratePage() {
 
   const handleGenConfig = async () => {
     if (!selectedTarget) return;
-    // 先检查已有结果
-    try {
-      const res = await api.generateResult(selectedTarget);
-      if (res.exists && res.config) {
-        setConfigResult(JSON.stringify(res.config, null, 2));
-        setStep(3);
-        return;
-      }
-    } catch { /* 无已有结果，继续生成 */ }
-
     setStep(2);
     setProgress("正在生成 Config...");
     setProgressPct(10);
@@ -87,15 +92,6 @@ export default function GeneratePage() {
 
   const handleGenHandler = async () => {
     if (!selectedTarget) return;
-    // 先检查已有结果
-    try {
-      const res = await api.generateResult(selectedTarget);
-      if (res.exists && res.handler_source) {
-        setHandlerResult(res.handler_source);
-        return;
-      }
-    } catch { /* 无已有结果，继续生成 */ }
-
     setProgress("正在生成 Handler...");
     setProgressPct(10);
     try {

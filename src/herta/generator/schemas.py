@@ -171,9 +171,10 @@ class GenerationContext:
         """
         sections_info = ""
         if self.target.sections:
+            shown = self.target.sections[:20]
             sections_info = "\n文档结构:\n" + "\n".join(
                 f"  - {s.get('title', s.get('name', '未命名章节'))}"
-                for s in self.target.sections
+                for s in shown
             )
             if len(self.target.sections) > 20:
                 sections_info += f"\n  ... 等共 {len(self.target.sections)} 个章节"

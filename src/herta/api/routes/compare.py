@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from herta.api.task_store import tasks
 from herta.utils.paths import project_relative
 from herta.logging import get_logger
+from herta.api.guards import validate_name
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -24,19 +25,7 @@ class CompareRequest(BaseModel):
 @router.post("/run")
 async def run_compare(req: CompareRequest):
     """运行评测对比（后台任务）"""
-    import uuid
-    task_id = str(uuid.uuid4())[:8]
-
-    tasks[task_id] = {
-        "type": "compare",
-        "status": "pending",
-        "progress": 0,
-        "message": "准备评测对比...",
-        "target": req.target,
-        "created_at": asyncio.get_event_loop().time(),
-        "result": None,
-        "error": None,
-    }
+    task_id = tasks.create("compare")
 
     asyncio.get_event_loop().run_in_executor(
         None, _run_compare, task_id, req
@@ -121,6 +110,7 @@ def _run_compare(task_id: str, req: CompareRequest):
 @router.get("/result/{target}")
 async def get_compare_result(target: str):
     """获取评测结果"""
+    target = validate_name(target, "target")
     metrics_file = project_relative(f"output/reports/{target}/metrics.json")
     if not metrics_file.exists():
         return {"exists": False}
@@ -142,6 +132,7 @@ async def get_compare_result(target: str):
 @router.get("/report/{target}")
 async def get_compare_report(target: str):
     """获取 Markdown 报告"""
+    target = validate_name(target, "target")
     report_file = project_relative(f"output/reports/{target}/comparison_report.md")
     if not report_file.exists():
         return {"exists": False}
@@ -155,6 +146,7 @@ async def get_compare_report(target: str):
 @router.get("/gt-config/{target}")
 async def get_gt_config(target: str):
     """获取真实配置文件"""
+    target = validate_name(target, "target")
     config_file = project_relative(f"data/target_proto/{target}/{target}_config.json")
     if not config_file.exists():
         return {"exists": False}
@@ -166,6 +158,7 @@ async def get_gt_config(target: str):
 @router.get("/gt-handler/{target}")
 async def get_gt_handler(target: str):
     """获取真实 Handler 源码"""
+    target = validate_name(target, "target")
     handler_file = project_relative(f"data/target_proto/{target}/{target}_handler.c")
     if not handler_file.exists():
         return {"exists": False}
@@ -173,4 +166,4 @@ async def get_gt_handler(target: str):
     with open(handler_file, "r", encoding="utf-8") as f:
         content = f.read()
 
-    return {"exists": True, "source": content, "lines": content.count("\n") + 1}
+    return {"exists": True, "source": content, "lines": len(content.splitlines())}

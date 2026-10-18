@@ -342,9 +342,8 @@ class PropositionChunker(BaseChunker):
         return chunks
 
     def _get_cache_key(self, text: str) -> str:
-        """生成缓存键"""
-        # 使用前100字符的哈希作为键
-        key = hashlib.md5(text[:200].encode()).hexdigest()[:16]
+        """生成缓存键（全文哈希：前 200 字符相同的不同段落不得共享命题缓存）"""
+        key = hashlib.md5(text.encode()).hexdigest()[:16]
         return key
 
     def _load_from_cache(self, cache_key: str) -> Optional[List[str]]:

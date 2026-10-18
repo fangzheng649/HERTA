@@ -91,5 +91,8 @@ class CodeAwareChunker(BaseChunker):
         code_chunker = SimpleChunker(code_config)
         chunks = code_chunker.chunk(doc)
         for chunk in chunks:
+            # 重新用外层计数器分配 id：内层 SimpleChunker 计数器从 0 开始，
+            # 会与函数级 chunk 及其他文件的全文 chunk 撞号（导致检索串文本）
+            chunk.chunk_id = self._generate_chunk_id(doc.source, doc.kind)
             chunk.chunk_strategy = "code_aware"
         return chunks

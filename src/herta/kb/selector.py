@@ -14,6 +14,7 @@ from herta.kb.schemas import SourceDocument, Chunk
 from herta.kb.chunker import BaseChunker, ChunkConfig, ChunkReport
 from herta.kb.simple_chunker import SimpleChunker
 from herta.logging import get_logger
+from herta.utils.paths import ensure_dir
 
 logger = get_logger(__name__)
 
@@ -137,10 +138,7 @@ class AutoSizeChunker(BaseChunker):
         )
         final_chunker = SimpleChunker(final_config)
 
-        all_chunks = []
-        for doc in docs:
-            chunks = final_chunker.chunk(doc)
-            all_chunks.extend(chunks)
+        all_chunks = final_chunker.chunk_batch(docs)
 
         # 生成报告
         self._report = final_chunker.get_report()
@@ -172,11 +170,8 @@ class AutoSizeChunker(BaseChunker):
         )
         chunker = SimpleChunker(config)
 
-        # 执行分块
-        all_chunks = []
-        for doc in docs:
-            chunks = chunker.chunk(doc)
-            all_chunks.extend(chunks)
+        # 执行分块（chunk_batch 才会生成统计报告，供评分使用）
+        all_chunks = chunker.chunk_batch(docs)
 
         # 获取报告
         report = chunker.get_report()
@@ -303,8 +298,3 @@ class AutoSizeChunker(BaseChunker):
         """获取最优参数"""
         return self._best_params
 
-
-def ensure_dir(path: Path) -> Path:
-    """确保目录存在"""
-    path.mkdir(parents=True, exist_ok=True)
-    return path

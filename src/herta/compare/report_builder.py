@@ -152,7 +152,8 @@ class ReportBuilder:
                 cmd_name = comp.get('cmd', 'unknown')
                 handler_check = comp.get('checks', {}).get('handler', {})
                 handler_match = "✓" if handler_check.get('match') else "✗"
-                desc_sim = handler_check.get('similarity', 0)
+                # desc 相似度在 checks['desc'] 下，handler 分支只有 match 标志
+                desc_sim = comp.get('checks', {}).get('desc', {}).get('similarity', 0)
                 score = comp.get('score', 0)
                 lines.append(f"| {cmd_name} | {handler_match} | {desc_sim:.0f}% | {score:.1f} |")
             lines.append("")

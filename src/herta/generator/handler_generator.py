@@ -466,9 +466,10 @@ class HandlerGenerator:
         """格式化目标协议信息，传入完整原文"""
         sections_info = ""
         if target_spec.sections:
+            shown = target_spec.sections[:20]
             sections_info = "\n文档结构:\n" + "\n".join(
                 f"  - {s.get('title', s.get('name', '未命名章节'))}"
-                for s in target_spec.sections
+                for s in shown
             )
             if len(target_spec.sections) > 20:
                 sections_info += f"\n  ... 等共 {len(target_spec.sections)} 个章节"

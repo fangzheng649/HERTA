@@ -50,9 +50,9 @@ def normalize_text(
     text = text.replace("\r\n", "\n").replace("\r", "\n")
 
     if preserve_newlines:
-        # 保留换行，但规范化每行内的空白
+        # 保留换行；仅去行尾空白，保留行首缩进（代码的缩进即语义结构）
         lines = text.split("\n")
-        lines = [" ".join(line.split()) for line in lines]
+        lines = [line.rstrip() for line in lines]
         text = "\n".join(lines)
     else:
         # 将所有空白（包括换行）替换为单个空格
